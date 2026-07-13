@@ -1,0 +1,31 @@
+services:
+  # Credential broker. Holds the encrypted store + MITM proxy. The agent never
+  # sees real secrets — it sends placeholder strings, the vault swaps them in.
+  vault:
+    build: ./vault
+    restart: unless-stopped
+    environment:
+      AGENT_VAULT_MASTER_PASSWORD: ${AGENT_VAULT_MASTER_PASSWORD}
+    volumes:
+      - vault-data:/root/.agent-vault          # encrypted store — NOT mounted into the agent
+    ports:
+      - "127.0.0.1:14321:14321"                # UI/API, reachable only via SSH tunnel
+    # 14322 (MITM proxy) is NOT published — the agent reaches it in-network as vault:14322
+    command: server --host 0.0.0.0 --port 14321 --mitm-port 14322
+
+  # opencode runs here. `agent-vault run` (see agent/Dockerfile ENTRYPOINT) sets
+  # HTTP(S)_PROXY + MITM CA before exec, so every shell you attach to is brokered.
+  agent:
+    build: ./agent
+    restart: unless-stopped
+    depends_on: [vault]
+    environment:
+      AGENT_VAULT_ADDR: http://vault:14321
+      AGENT_VAULT_TOKEN: ${AGENT_VAULT_TOKEN}  # minted in the vault UI; agent won't start without it
+      AGENT_VAULT_VAULT: default
+      GITHUB_TOKEN: __github_token__           # placeholder; vault substitutes the real PAT at the proxy
+    # No volume: the agent is disposable. `--force-recreate` gives a clean one, wiping any
+    # compromise. Cost is re-running `opencode auth login` after a recreate — cheap.
+
+volumes:
+  vault-data:
