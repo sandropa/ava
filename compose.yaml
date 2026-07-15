@@ -24,6 +24,7 @@ services:
       AGENT_VAULT_TOKEN: ${AGENT_VAULT_TOKEN}  # minted in the vault UI; agent won't start without it
       AGENT_VAULT_VAULT: default
       GITHUB_TOKEN: __github_token__           # placeholder; vault substitutes the real PAT at the proxy
+      OPENCODE_API_KEY: __opencode_key__       # placeholder; vault substitutes the real opencode zen key
     # No volume: the agent is disposable. `--force-recreate` gives a clean one, wiping any
     # compromise. Cost is re-running `opencode auth login` after a recreate — cheap.
 

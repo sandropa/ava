@@ -15,5 +15,8 @@ RUN git config --system credential.helper '!f() { echo username=x-access-token; 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# opencode reads the zen API key from env as a placeholder; the vault swaps in the real key.
+COPY opencode.json /root/.config/opencode/opencode.json
+
 # agent-vault run validates the token, sets HTTP(S)_PROXY + CA env, then execs the child.
 ENTRYPOINT ["agent-vault", "run", "--", "/usr/local/bin/entrypoint.sh"]

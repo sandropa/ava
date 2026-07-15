@@ -128,7 +128,8 @@ sudo docker compose exec agent tmux attach -t work   # brokered shell inside the
 Inside that shell:
 
 ```bash
-opencode auth login          # pick a free model provider (re-run after a --force-recreate)
+# pick a free model in opencode — many work with no `opencode auth login` at all.
+# only log in if the model you choose demands it.
 gh auth status               # should show the agent's GitHub account via the brokered API
 git clone https://github.com/<owner>/<repo> && cd <repo>
 opencode                     # give it a task: make a change, push a branch, open a PR
@@ -148,6 +149,29 @@ persistence a compromise could have planted:
 ```bash
 sudo docker compose up -d --force-recreate agent
 ```
+
+---
+
+## Using paid opencode models (opencode go)
+
+Brokered like the GitHub PAT — the real key lives in the vault, the container only holds a
+placeholder (`__opencode_key__`, set in `compose.yaml`; opencode reads it via
+`agent/opencode.json`). Do **not** run `/connect` or `opencode auth login` with the real key
+— that writes it to the container's disk, which is exactly what we're avoiding.
+
+1. **Vault UI → Credentials → Add credential:** `OPENCODE_API_KEY` = your opencode zen or (go) key.
+2. **Vault UI → Services → Add service:** name `opencode-go`, host `opencode.ai`, Auth
+   **Passthrough**, URL Substitution → replace `__opencode_key__` in surface **`header`**
+   with credential `OPENCODE_API_KEY`.
+3. Rebuild + recreate the agent so it picks up the new env + config:
+   ```bash
+   sudo docker compose up -d --build --force-recreate agent
+   ```
+4. Run with a zen model (`opencode/<model-id>`, e.g. `opencode/gpt-5.5`):
+   ```bash
+   sudo docker compose exec agent tmux attach -t work
+   opencode run --auto -m opencode/<model-id> "your task"
+   ```
 
 ---
 
@@ -171,10 +195,7 @@ sudo docker compose up -d --force-recreate agent
 - **More agents:** copy the `agent` service to `agent-2`, `agent-3` in `compose.yaml`,
   each with its own `AGENT_VAULT_TOKEN` (one agent identity per slot in the vault). Same
   image, no volumes.
-- **opencode go (paid models):** same brokering pattern as GitHub — add the opencode key as
-  a vault credential + a service for opencode's gateway host, substituting a placeholder, so
-  the real key never lands in the container. (Confirm the exact host + auth header/env var
-  from opencode go's docs when you switch off free models.)
+- **opencode go / zen (paid models):** wired up — see "Using paid opencode models" below.
 - **Telegram:** add the bot token as a credential + `api.telegram.org` service, then wire the
   gateway. (agent-vault's Hermes guide covers the pattern.)
 - **Tailscale / tighter egress:** currently the agent container has open egress by default;
